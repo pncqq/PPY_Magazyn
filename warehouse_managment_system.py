@@ -52,17 +52,32 @@ class WarehouseManagementSystem:
 
         print("Product removed successfully.")
 
-    def search_product(self, keyword):
+    def search_product(self, keyword, sort_key):
         results = []
-        for product in self.products:
-            if keyword.lower() in product.name.lower() or keyword.lower() == product.product_id:
-                results.append(product)
-            else:
-                lcs_length = longest_common_subsequence(product.name, keyword)
-                similarity = lcs_length / max(len(product.name), len(keyword))
-                if similarity >= 0.5:  # próg podobieństwa
+
+        if keyword.isdigit():
+            for product in self.products:
+                if int(keyword) == product.product_id:
                     results.append(product)
-        return results
+        else:
+            for product in self.products:
+                if keyword.lower() in product.name.lower():
+                    results.append(product)
+                else:
+                    lcs_length = longest_common_subsequence(product.name, keyword)
+                    similarity = lcs_length / max(len(product.name), len(keyword))
+                    if similarity >= 0.5:  # próg podobieństwa
+                        results.append(product)
+        switch = {
+            1: "product_id",
+            2: "name",
+            3: "description",
+            4: "price",
+            5: "quantity"
+        }
+        sort_key = switch.get(sort_key, "Invalid sort key")
+        sorted_products = sorted(results, key=lambda x: getattr(x, sort_key))
+        return sorted_products
 
     def update_product_quantity(self, product_id, name, description, price, quantity):
 
@@ -101,21 +116,41 @@ class WarehouseManagementSystem:
         self.connection.commit()
         print("Warehouse updated successfully.")
 
-    def generate_report(self):
+    def generate_report(self, sort_key):
         # # Fetch products
         # self.products = []
         # rows = self.cursor.execute("SELECT * FROM Warehouse")
         # for row in rows:
         #     item = Product(row[0], row[1], row[2], row[3], row[4])
         #     self.products.append(item)
-
+        # wyznacz kategorie, które wyświetlać
+        categories_input = input("Enter categories (comma-separated) or leave blank to show all categories: ")
+        selected_categories = []
+        if categories_input:
+            # jeśli podano kategorie, rozdzielamy je
+            selected_categories = [category.strip() for category in categories_input.split(",")]
+        #sortowanie
+        switch = {
+            1: "product_id",
+            2: "name",
+            3: "description",
+            4: "price",
+            5: "quantity"
+        }
+        sort_key = switch.get(sort_key, "Invalid sort key")
+        sorted_products = sorted(self.products, key=lambda x: getattr(x, sort_key))
+        #wyświetlanie posortowanych produktów i tylko wybranych kategorii
         print("Warehouse Report:")
-        for product in self.products:
+        for product in sorted_products:
             print("Product ID:", product.product_id)
-            print("Name:", product.name)
-            print("Description:", product.description)
-            print("Price:", product.price)
-            print("Quantity:", product.quantity)
+            if "name" in selected_categories:
+                print("Name:", product.name)
+            if "description" in selected_categories:
+                print("Description:", product.description)
+            if "price" in selected_categories:
+                print("Price:", product.price)
+            if "quantity" in selected_categories:
+                print("Quantity:", product.quantity)
             print("---------------------")
 
     def run(self):
@@ -133,7 +168,7 @@ class WarehouseManagementSystem:
             print("3. Update Product")
             print("4. Generate Report")
             print("5. Remove Product")
-            print("5. Exit")
+            print("6. Exit")
 
             choice = input("Enter your choice: ")
             print("---------------------\n")
@@ -154,12 +189,21 @@ class WarehouseManagementSystem:
                     print("Error:", str(e))
             elif choice == '2':
                 keyword = input("Enter search keyword: ")
-                results = self.search_product(keyword)
+                sort_key = input("Enter the number of sort key: \n 1 : product_id\n 2 : name"
+                                 "\n 3 : description\n 4 : price\n 5 : quantity\nnumber:  ")
+                if not sort_key.isdigit() and len(sort_key) != 0:
+                    print('This is not an digit!')
+                    continue
+                if not 1 <= int(sort_key) <= 5:
+                    print("This is invalid value!")
+                    continue
+                results = self.search_product(keyword, int(sort_key))
                 if results:
-                    print("\nSearch results:")
+                    print("\nSearched results:")
                     for product in results:
                         print("Product ID:", product.product_id)
                         print("Name:", product.name)
+                        print("Description:", product.description)
                         print("Quantity:", product.quantity)
                         print("Price:", product.price)
                         print("---------------------")
@@ -183,7 +227,15 @@ class WarehouseManagementSystem:
 
                 self.update_product_quantity(product_id, name, description, price, quantity)
             elif choice == '4':
-                self.generate_report()
+                sort_key = input("Enter the number of sort key: \n 1 : product_id\n 2 : name"
+                                 "\n 3 : description\n 4 : price\n 5 : quantity\nnumber:  ")
+                if not sort_key.isdigit() and len(sort_key) != 0:
+                    print('This is not an digit!')
+                    continue
+                if not 1 <= int(sort_key) <= 5:
+                    print("This is invalid value!")
+                    continue
+                self.generate_report(int(sort_key))
             elif choice == '5':
                 product_id = input("Enter product ID: ")
                 if not product_id.isdigit():
